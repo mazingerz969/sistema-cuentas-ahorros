@@ -1,0 +1,220 @@
+<!-- Componente de gestión de transacciones -->
+<div class="transacciones-container">
+  
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <h1>Gestión de Transacciones</h1>
+      <p>Realiza depósitos, retiros y consulta tu historial</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="cambiarTipoTransaccion(TipoTransaccion.DEPOSITO); mostrandoFormularioNueva = true">
+        <span class="icon">➕</span>
+        Depositar
+      </button>
+      <button class="btn-secondary" (click)="cambiarTipoTransaccion(TipoTransaccion.RETIRO); mostrandoFormularioNueva = true">
+        <span class="icon">➖</span>
+        Retirar
+      </button>
+    </div>
+  </div>
+
+  <!-- Mensajes de estado -->
+  <div class="messages">
+    <div class="error-message" *ngIf="error">
+      <span class="icon">⚠️</span>
+      {{ error }}
+      <button class="btn-close" (click)="error = ''">×</button>
+    </div>
+    
+    <div class="success-message" *ngIf="mensajeExito">
+      <span class="icon">✅</span>
+      {{ mensajeExito }}
+      <button class="btn-close" (click)="mensajeExito = ''">×</button>
+    </div>
+  </div>
+
+  <!-- Estadísticas rápidas -->
+  <div class="stats-section" *ngIf="transaccionesFiltradas.length > 0">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon deposito">💰</div>
+        <div class="stat-content">
+          <h3>Total Depósitos</h3>
+          <p class="stat-value">{{ formatearMoneda(totalDepositos.toString()) }}</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon retiro">💸</div>
+        <div class="stat-content">
+          <h3>Total Retiros</h3>
+          <p class="stat-value">{{ formatearMoneda(totalRetiros.toString()) }}</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon balance">⚖️</div>
+        <div class="stat-content">
+          <h3>Balance Neto</h3>
+          <p class="stat-value" [class]="balanceNeto >= 0 ? 'positive' : 'negative'">
+            {{ balanceNeto >= 0 ? '+' : '' }}{{ formatearMoneda(balanceNeto.toString()) }}
+          </p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon total">📊</div>
+        <div class="stat-content">
+          <h3>Total Transacciones</h3>
+          <p class="stat-value">{{ transaccionesFiltradas.length }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros y búsqueda -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input 
+        type="text" 
+        [(ngModel)]="terminoBusqueda" 
+        (input)="onBusquedaChange()"
+        placeholder="Buscar por cuenta, descripción o tipo..."
+        class="search-input"
+      >
+      <span class="search-icon">🔍</span>
+    </div>
+    
+    <div class="filter-options">
+      <select [(ngModel)]="filtroCuenta" (change)="onFiltrosChange()" class="filter-select">
+        <option value="">Todas las cuentas</option>
+        <option *ngFor="let cuenta of cuentas" [value]="cuenta.id">
+          {{ cuenta.numeroCuenta }} - {{ cuenta.titular }}
+        </option>
+      </select>
+      
+      <select [(ngModel)]="filtroTipo" (change)="onFiltrosChange()" class="filter-select">
+        <option value="">Todos los tipos</option>
+        <option value="DEPOSITO">Depósitos</option>
+        <option value="RETIRO">Retiros</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Estado de carga -->
+  <div class="loading-state" *ngIf="cargando">
+    <div class="spinner"></div>
+    <p>Cargando transacciones...</p>
+  </div>
+
+  <!-- Lista de transacciones -->
+  <div class="transactions-list" *ngIf="!cargando && transaccionesFiltradas.length > 0">
+    <div class="transaction-item" *ngFor="let transaccion of transaccionesFiltradas">
+      <div class="transaction-icon" [class]="getClaseTransaccion(transaccion.tipo)">
+        {{ getIconoTransaccion(transaccion.tipo) }}
+      </div>
+      
+      <div class="transaction-details">
+        <div class="transaction-header">
+          <h4>{{ transaccion.tipoDescripcion }}</h4>
+          <span class="amount" [class]="getClaseTransaccion(transaccion.tipo)">
+            {{ transaccion.tipo === 'DEPOSITO' ? '+' : '-' }}{{ formatearMoneda(transaccion.monto) }}
+          </span>
+        </div>
+        
+        <div class="transaction-meta">
+          <p class="account">{{ transaccion.numeroCuenta }}</p>
+          <p class="date">{{ formatearFecha(transaccion.fechaTransaccion) }}</p>
+          <p class="description" *ngIf="transaccion.descripcion">{{ transaccion.descripcion }}</p>
+          <p class="saldo-resultante">Saldo: {{ formatearMoneda(transaccion.saldoResultante) }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado vacío -->
+  <div class="empty-state" *ngIf="!cargando && transaccionesFiltradas.length === 0">
+    <div class="empty-icon">📋</div>
+    <h3>No se encontraron transacciones</h3>
+    <p *ngIf="terminoBusqueda || filtroCuenta || filtroTipo">
+      Intenta ajustar los filtros de búsqueda
+    </p>
+    <p *ngIf="!terminoBusqueda && !filtroCuenta && !filtroTipo">
+      Realiza tu primera transacción
+    </p>
+    <div class="empty-actions" *ngIf="!terminoBusqueda && !filtroCuenta && !filtroTipo">
+      <button class="btn-primary" (click)="cambiarTipoTransaccion(TipoTransaccion.DEPOSITO); mostrandoFormularioNueva = true">
+        <span class="icon">➕</span>
+        Realizar depósito
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal para nueva transacción -->
+  <div class="modal-overlay" *ngIf="mostrandoFormularioNueva" (click)="mostrandoFormularioNueva = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ tipoTransaccionSeleccionada === TipoTransaccion.DEPOSITO ? 'Realizar Depósito' : 'Realizar Retiro' }}</h2>
+        <button class="btn-close" (click)="mostrandoFormularioNueva = false">×</button>
+      </div>
+      
+      <form (ngSubmit)="realizarTransaccion()" class="modal-form">
+        <div class="form-group">
+          <label for="cuentaId">Cuenta *</label>
+          <select 
+            id="cuentaId"
+            [(ngModel)]="nuevaTransaccion.cuentaId" 
+            name="cuentaId"
+            required
+            class="form-select"
+          >
+            <option value="">Selecciona una cuenta</option>
+            <option *ngFor="let cuenta of opcionesCuentas" [value]="cuenta.id">
+              {{ cuenta.numeroCuenta }} - {{ cuenta.titular }} ({{ formatearMoneda(cuenta.saldo) }})
+            </option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="monto">Monto *</label>
+          <input 
+            type="number" 
+            id="monto"
+            [(ngModel)]="nuevaTransaccion.monto" 
+            name="monto"
+            placeholder="0.00"
+            min="0.01"
+            step="0.01"
+            required
+            class="form-input"
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="descripcion">Descripción</label>
+          <textarea 
+            id="descripcion"
+            [(ngModel)]="nuevaTransaccion.descripcion" 
+            name="descripcion"
+            placeholder="Descripción de la transacción (opcional)"
+            rows="3"
+            class="form-textarea"
+          ></textarea>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="mostrandoFormularioNueva = false">
+            Cancelar
+          </button>
+          <button type="submit" class="btn-primary" [disabled]="guardando">
+            <span class="icon" *ngIf="!guardando">{{ tipoTransaccionSeleccionada === TipoTransaccion.DEPOSITO ? '💰' : '💸' }}</span>
+            <span class="spinner" *ngIf="guardando"></span>
+            {{ guardando ? 'Procesando...' : (tipoTransaccionSeleccionada === TipoTransaccion.DEPOSITO ? 'Depositar' : 'Retirar') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div> 

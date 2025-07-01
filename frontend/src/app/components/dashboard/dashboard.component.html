@@ -1,0 +1,164 @@
+<!-- Dashboard principal de la aplicación de cuentas de ahorros -->
+<div class="dashboard-container">
+  
+  <!-- Header del dashboard -->
+  <div class="dashboard-header">
+    <h1>Dashboard de Cuentas de Ahorros</h1>
+    <button class="btn-refresh" (click)="recargarDashboard()" [disabled]="cargandoCuentas || cargandoTransacciones || cargandoEstadisticas">
+      <span class="icon">🔄</span>
+      Recargar
+    </button>
+  </div>
+
+  <!-- Tarjetas de resumen -->
+  <div class="summary-cards">
+    <!-- Tarjeta de saldo total -->
+    <div class="card summary-card">
+      <div class="card-icon">💰</div>
+      <div class="card-content">
+        <h3>Saldo Total</h3>
+        <p class="amount" *ngIf="!cargandoCuentas">{{ formatearMoneda(saldoTotal) }}</p>
+        <p class="loading" *ngIf="cargandoCuentas">Cargando...</p>
+        <p class="error" *ngIf="errorCuentas">{{ errorCuentas }}</p>
+      </div>
+    </div>
+
+    <!-- Tarjeta de número de cuentas -->
+    <div class="card summary-card">
+      <div class="card-icon">🏦</div>
+      <div class="card-content">
+        <h3>Total Cuentas</h3>
+        <p class="amount" *ngIf="!cargandoCuentas">{{ totalCuentas }}</p>
+        <p class="loading" *ngIf="cargandoCuentas">Cargando...</p>
+        <p class="error" *ngIf="errorCuentas">{{ errorCuentas }}</p>
+      </div>
+    </div>
+
+    <!-- Tarjeta de estadísticas -->
+    <div class="card summary-card" *ngIf="estadisticas">
+      <div class="card-icon">📊</div>
+      <div class="card-content">
+        <h3>Cuentas Activas</h3>
+        <p class="amount" *ngIf="!cargandoEstadisticas">{{ estadisticas.cuentasActivas }}</p>
+        <p class="loading" *ngIf="cargandoEstadisticas">Cargando...</p>
+        <p class="error" *ngIf="errorEstadisticas">{{ errorEstadisticas }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenido principal -->
+  <div class="main-content">
+    
+    <!-- Sección de cuentas -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Mis Cuentas</h2>
+        <a routerLink="/cuentas" class="btn-secondary">Ver Todas</a>
+      </div>
+      
+      <div class="accounts-grid" *ngIf="!cargandoCuentas && cuentas.length > 0">
+        <div class="account-card" *ngFor="let cuenta of cuentas.slice(0, 3)">
+          <div class="account-header">
+            <h4>{{ cuenta.numeroCuenta }}</h4>
+            <span class="status" [class.active]="cuenta.activa" [class.inactive]="!cuenta.activa">
+              {{ cuenta.activa ? 'Activa' : 'Inactiva' }}
+            </span>
+          </div>
+          <div class="account-details">
+            <p class="titular">{{ cuenta.titular }}</p>
+            <p class="saldo">{{ formatearMoneda(parseFloat(cuenta.saldo)) }}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="empty-state" *ngIf="!cargandoCuentas && cuentas.length === 0">
+        <p>No tienes cuentas de ahorros aún.</p>
+        <a routerLink="/cuentas" class="btn-primary">Crear Primera Cuenta</a>
+      </div>
+      
+      <div class="loading-state" *ngIf="cargandoCuentas">
+        <p>Cargando cuentas...</p>
+      </div>
+      
+      <div class="error-state" *ngIf="errorCuentas">
+        <p>{{ errorCuentas }}</p>
+        <button class="btn-secondary" (click)="reintentarCargarCuentas()">Reintentar</button>
+      </div>
+    </div>
+
+    <!-- Sección de transacciones recientes -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Transacciones Recientes</h2>
+        <a routerLink="/transacciones" class="btn-secondary">Ver Todas</a>
+      </div>
+      
+      <div class="transactions-list" *ngIf="!cargandoTransacciones && transaccionesRecientes.length > 0">
+        <div class="transaction-item" *ngFor="let transaccion of transaccionesRecientes">
+          <div class="transaction-icon" [class]="getClaseTransaccion(transaccion.tipo)">
+            {{ transaccion.tipo === 'DEPOSITO' ? '➕' : '➖' }}
+          </div>
+          <div class="transaction-details">
+            <div class="transaction-header">
+              <h4>{{ transaccion.tipoDescripcion }}</h4>
+              <span class="amount" [class]="getClaseTransaccion(transaccion.tipo)">
+                {{ transaccion.tipo === 'DEPOSITO' ? '+' : '-' }}{{ formatearMoneda(parseFloat(transaccion.monto)) }}
+              </span>
+            </div>
+            <div class="transaction-meta">
+              <p class="account">{{ transaccion.numeroCuenta }}</p>
+              <p class="date">{{ formatearFecha(transaccion.fechaTransaccion) }}</p>
+              <p class="description" *ngIf="transaccion.descripcion">{{ transaccion.descripcion }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="empty-state" *ngIf="!cargandoTransacciones && transaccionesRecientes.length === 0">
+        <p>No hay transacciones recientes.</p>
+        <a routerLink="/transacciones" class="btn-primary">Realizar Transacción</a>
+      </div>
+      
+      <div class="loading-state" *ngIf="cargandoTransacciones">
+        <p>Cargando transacciones...</p>
+      </div>
+      
+      <div class="error-state" *ngIf="errorTransacciones">
+        <p>{{ errorTransacciones }}</p>
+        <button class="btn-secondary" (click)="reintentarCargarTransacciones()">Reintentar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Acciones rápidas -->
+  <div class="quick-actions">
+    <h3>Acciones Rápidas</h3>
+    <div class="actions-grid">
+      <a routerLink="/cuentas/nueva" class="action-card">
+        <div class="action-icon">➕</div>
+        <h4>Nueva Cuenta</h4>
+        <p>Crear una nueva cuenta de ahorros</p>
+      </a>
+      
+      <a routerLink="/transacciones/nueva" class="action-card">
+        <div class="action-icon">💰</div>
+        <h4>Realizar Transacción</h4>
+        <p>Depositar o retirar dinero</p>
+      </a>
+      
+      <a routerLink="/cuentas" class="action-card">
+        <div class="action-icon">📋</div>
+        <h4>Gestionar Cuentas</h4>
+        <p>Ver y editar tus cuentas</p>
+      </a>
+      
+      <a routerLink="/transacciones" class="action-card">
+        <div class="action-icon">📊</div>
+        <h4>Historial</h4>
+        <p>Ver historial de transacciones</p>
+      </a>
+    </div>
+  </div>
+
+</div> 

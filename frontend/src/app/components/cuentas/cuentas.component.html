@@ -1,0 +1,262 @@
+<!-- Componente de gestión de cuentas de ahorros -->
+<div class="cuentas-container">
+  
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <h1>Gestión de Cuentas</h1>
+      <p>Administra tus cuentas de ahorros</p>
+    </div>
+    <button class="btn-primary" (click)="mostrandoFormularioNueva = true">
+      <span class="icon">➕</span>
+      Nueva Cuenta
+    </button>
+  </div>
+
+  <!-- Mensajes de estado -->
+  <div class="messages">
+    <div class="error-message" *ngIf="error">
+      <span class="icon">⚠️</span>
+      {{ error }}
+      <button class="btn-close" (click)="error = ''">×</button>
+    </div>
+    
+    <div class="success-message" *ngIf="mensajeExito">
+      <span class="icon">✅</span>
+      {{ mensajeExito }}
+      <button class="btn-close" (click)="mensajeExito = ''">×</button>
+    </div>
+  </div>
+
+  <!-- Filtros y búsqueda -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input 
+        type="text" 
+        [(ngModel)]="terminoBusqueda" 
+        (input)="onBusquedaChange()"
+        placeholder="Buscar por número de cuenta o titular..."
+        class="search-input"
+      >
+      <span class="search-icon">🔍</span>
+    </div>
+    
+    <div class="filter-options">
+      <label class="checkbox-label">
+        <input 
+          type="checkbox" 
+          [(ngModel)]="filtroActivas" 
+          (change)="onFiltroActivasChange()"
+        >
+        <span class="checkmark"></span>
+        Solo cuentas activas
+      </label>
+    </div>
+  </div>
+
+  <!-- Estado de carga -->
+  <div class="loading-state" *ngIf="cargando">
+    <div class="spinner"></div>
+    <p>Cargando cuentas...</p>
+  </div>
+
+  <!-- Lista de cuentas -->
+  <div class="accounts-grid" *ngIf="!cargando && cuentasFiltradas.length > 0">
+    <div class="account-card" *ngFor="let cuenta of cuentasFiltradas">
+      <div class="account-header">
+        <div class="account-info">
+          <h3>{{ cuenta.numeroCuenta }}</h3>
+          <span class="status" [class]="getClaseEstado(cuenta.activa)">
+            {{ cuenta.activa ? 'Activa' : 'Inactiva' }}
+          </span>
+        </div>
+        <div class="account-actions">
+          <button class="btn-icon" (click)="iniciarEdicion(cuenta)" title="Editar">
+            ✏️
+          </button>
+          <button class="btn-icon" (click)="eliminarCuenta(cuenta)" title="Eliminar">
+            🗑️
+          </button>
+        </div>
+      </div>
+      
+      <div class="account-details">
+        <p class="titular"><strong>Titular:</strong> {{ cuenta.titular }}</p>
+        <p class="saldo"><strong>Saldo:</strong> {{ formatearMoneda(cuenta.saldo) }}</p>
+        <p class="fecha"><strong>Creada:</strong> {{ formatearFecha(cuenta.fechaCreacion) }}</p>
+      </div>
+      
+      <div class="account-transactions" *ngIf="cuenta.activa">
+        <button class="btn-secondary" (click)="realizarDeposito(cuenta)">
+          💰 Depositar
+        </button>
+        <button class="btn-secondary" (click)="realizarRetiro(cuenta)">
+          💸 Retirar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado vacío -->
+  <div class="empty-state" *ngIf="!cargando && cuentasFiltradas.length === 0">
+    <div class="empty-icon">🏦</div>
+    <h3>No se encontraron cuentas</h3>
+    <p *ngIf="terminoBusqueda || filtroActivas">
+      Intenta ajustar los filtros de búsqueda
+    </p>
+    <p *ngIf="!terminoBusqueda && !filtroActivas">
+      Crea tu primera cuenta de ahorros
+    </p>
+    <button class="btn-primary" (click)="mostrandoFormularioNueva = true" *ngIf="!terminoBusqueda && !filtroActivas">
+      <span class="icon">➕</span>
+      Crear cuenta
+    </button>
+  </div>
+
+  <!-- Modal para nueva cuenta -->
+  <div class="modal-overlay" *ngIf="mostrandoFormularioNueva" (click)="mostrandoFormularioNueva = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Nueva Cuenta</h2>
+        <button class="btn-close" (click)="mostrandoFormularioNueva = false">×</button>
+      </div>
+      
+      <form (ngSubmit)="crearCuenta()" class="modal-form">
+        <div class="form-group">
+          <label for="numeroCuenta">Número de Cuenta *</label>
+          <input 
+            type="text" 
+            id="numeroCuenta"
+            [(ngModel)]="nuevaCuenta.numeroCuenta" 
+            name="numeroCuenta"
+            placeholder="Ej: 1234567890"
+            required
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="titular">Titular *</label>
+          <input 
+            type="text" 
+            id="titular"
+            [(ngModel)]="nuevaCuenta.titular" 
+            name="titular"
+            placeholder="Nombre del titular"
+            required
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="saldo">Saldo Inicial *</label>
+          <input 
+            type="number" 
+            id="saldo"
+            [(ngModel)]="nuevaCuenta.saldo" 
+            name="saldo"
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            required
+          >
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="mostrandoFormularioNueva = false">
+            Cancelar
+          </button>
+          <button type="submit" class="btn-primary" [disabled]="guardando">
+            <span class="icon" *ngIf="!guardando">💾</span>
+            <span class="spinner" *ngIf="guardando"></span>
+            {{ guardando ? 'Guardando...' : 'Crear Cuenta' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal para editar cuenta -->
+  <div class="modal-overlay" *ngIf="mostrandoFormularioEdicion" (click)="cancelarEdicion()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Editar Cuenta</h2>
+        <button class="btn-close" (click)="cancelarEdicion()">×</button>
+      </div>
+      
+      <form (ngSubmit)="guardarEdicion()" class="modal-form" *ngIf="cuentaEditando">
+        <div class="form-group">
+          <label for="editNumeroCuenta">Número de Cuenta</label>
+          <input 
+            type="text" 
+            id="editNumeroCuenta"
+            [value]="cuentaEditando.numeroCuenta"
+            disabled
+            class="disabled-input"
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="editTitular">Titular *</label>
+          <input 
+            type="text" 
+            id="editTitular"
+            [(ngModel)]="cuentaActualizada.titular" 
+            name="titular"
+            placeholder="Nombre del titular"
+            required
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="editActiva">Estado</label>
+          <select 
+            id="editActiva"
+            [(ngModel)]="cuentaActualizada.activa" 
+            name="activa"
+          >
+            <option [value]="true">Activa</option>
+            <option [value]="false">Inactiva</option>
+          </select>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="cancelarEdicion()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn-primary" [disabled]="guardando">
+            <span class="icon" *ngIf="!guardando">💾</span>
+            <span class="spinner" *ngIf="guardando"></span>
+            {{ guardando ? 'Guardando...' : 'Actualizar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación de eliminación -->
+  <div class="modal-overlay" *ngIf="cuentaSeleccionadaParaEliminar" (click)="cancelarEliminacion()">
+    <div class="modal-content confirmation-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirmar Eliminación</h2>
+        <button class="btn-close" (click)="cancelarEliminacion()">×</button>
+      </div>
+      
+      <div class="modal-body" *ngIf="cuentaSeleccionadaParaEliminar">
+        <div class="warning-icon">⚠️</div>
+        <p>¿Estás seguro de que quieres eliminar la cuenta <strong>{{ cuentaSeleccionadaParaEliminar.numeroCuenta }}</strong>?</p>
+        <p class="warning-text">Esta acción no se puede deshacer.</p>
+      </div>
+      
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="cancelarEliminacion()">
+          Cancelar
+        </button>
+        <button type="button" class="btn-danger" (click)="confirmarEliminacion()" [disabled]="eliminando">
+          <span class="icon" *ngIf="!eliminando">🗑️</span>
+          <span class="spinner" *ngIf="eliminando"></span>
+          {{ eliminando ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div> 
