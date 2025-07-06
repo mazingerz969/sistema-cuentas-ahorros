@@ -1,0 +1,68 @@
+<div class="notificaciones-container">
+  <div class="notificaciones-header">
+    <h2>Notificaciones</h2>
+    <div class="header-actions">
+      <button 
+        *ngIf="hayNotificacionesNoLeidas()"
+        class="btn-marcar-todas"
+        (click)="marcarTodasComoLeidas()"
+      >
+        Marcar todas como leídas
+      </button>
+    </div>
+  </div>
+
+  <div class="notificaciones-content">
+    <div *ngIf="isLoading" class="loading">
+      <p>Cargando notificaciones...</p>
+    </div>
+
+    <div *ngIf="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="!isLoading && notificaciones.length === 0" class="empty-state">
+      <p>No tienes notificaciones</p>
+    </div>
+
+    <div *ngIf="!isLoading && notificaciones.length > 0" class="notificaciones-list">
+      <div 
+        *ngFor="let notificacion of notificaciones"
+        class="notificacion-item"
+        [class.no-leida]="!notificacion.leida"
+        [class.leida]="notificacion.leida"
+      >
+        <div class="notificacion-icon">
+          <span class="icon">{{ getTipoIcono(notificacion.tipo) }}</span>
+        </div>
+
+        <div class="notificacion-content">
+          <div class="notificacion-header">
+            <p class="mensaje">{{ notificacion.mensaje }}</p>
+            <span class="fecha">{{ formatearFecha(notificacion.fechaCreacion) }}</span>
+          </div>
+
+          <div class="notificacion-actions">
+            <button 
+              *ngIf="!notificacion.leida"
+              class="btn-marcar-leida"
+              (click)="marcarComoLeida(notificacion)"
+            >
+              Marcar como leída
+            </button>
+            <button 
+              class="btn-eliminar"
+              (click)="eliminarNotificacion(notificacion)"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+
+        <div class="notificacion-status">
+          <div *ngIf="!notificacion.leida" class="unread-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
