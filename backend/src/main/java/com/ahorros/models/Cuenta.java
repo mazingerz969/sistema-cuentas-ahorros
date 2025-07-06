@@ -106,6 +106,14 @@ public class Cuenta {
     private List<Transaccion> transacciones = new ArrayList<>();
 
     /**
+     * Usuario propietario de la cuenta.
+     * Relación muchos a uno: muchos usuarios pueden tener muchas cuentas.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id")
+    private Usuario usuario;
+
+    /**
      * Método para agregar una transacción a la cuenta.
      * Mantiene la consistencia de la relación bidireccional.
      * 
