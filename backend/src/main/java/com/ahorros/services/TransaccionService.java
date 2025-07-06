@@ -5,6 +5,7 @@ import com.ahorros.models.Cuenta;
 import com.ahorros.models.Transaccion;
 import com.ahorros.repositories.CuentaRepository;
 import com.ahorros.repositories.TransaccionRepository;
+import com.ahorros.services.NotificacionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,11 @@ public class TransaccionService {
      * Repositorio de cuentas inyectado por Spring.
      */
     private final CuentaRepository cuentaRepository;
+    
+    /**
+     * Servicio de notificaciones inyectado por Spring.
+     */
+    private final NotificacionService notificacionService;
 
     /**
      * Realiza un depósito en una cuenta.
@@ -96,6 +102,20 @@ public class TransaccionService {
 
         // Guardar la cuenta actualizada
         cuentaRepository.save(cuenta);
+
+        // Crear notificación si la cuenta tiene usuario asociado
+        if (cuenta.getUsuario() != null) {
+            try {
+                notificacionService.crearNotificacionTransaccion(
+                    cuenta.getUsuario().getId(),
+                    "DEPOSITO",
+                    transaccionDTO.getMonto().toString(),
+                    cuenta.getNumeroCuenta()
+                );
+            } catch (Exception e) {
+                log.warn("No se pudo crear la notificación para el depósito: {}", e.getMessage());
+            }
+        }
 
         log.info("Depósito realizado exitosamente. Nuevo saldo: {}", cuenta.getSaldo());
 
@@ -160,6 +180,29 @@ public class TransaccionService {
 
         // Guardar la cuenta actualizada
         cuentaRepository.save(cuenta);
+
+        // Crear notificación si la cuenta tiene usuario asociado
+        if (cuenta.getUsuario() != null) {
+            try {
+                notificacionService.crearNotificacionTransaccion(
+                    cuenta.getUsuario().getId(),
+                    "RETIRO",
+                    transaccionDTO.getMonto().toString(),
+                    cuenta.getNumeroCuenta()
+                );
+                
+                // Crear notificación de saldo bajo si el saldo es menor a 100
+                if (cuenta.getSaldo().compareTo(new BigDecimal("100")) < 0) {
+                    notificacionService.crearNotificacionSaldoBajo(
+                        cuenta.getUsuario().getId(),
+                        cuenta.getNumeroCuenta(),
+                        cuenta.getSaldo().toString()
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("No se pudo crear la notificación para el retiro: {}", e.getMessage());
+            }
+        }
 
         log.info("Retiro realizado exitosamente. Nuevo saldo: {}", cuenta.getSaldo());
 
