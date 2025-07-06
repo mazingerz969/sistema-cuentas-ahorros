@@ -21,6 +21,16 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
+    path: 'login',
+    loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent),
+    title: 'Iniciar Sesión'
+  },
+  {
+    path: 'registro',
+    loadComponent: () => import('./components/registro/registro.component').then(m => m.RegistroComponent),
+    title: 'Registro'
+  },
+  {
     path: 'dashboard',
     loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent),
     title: 'Dashboard'
@@ -31,9 +41,24 @@ export const routes: Routes = [
     title: 'Gestión de Cuentas'
   },
   {
+    path: 'cuentas/nueva',
+    loadComponent: () => import('./components/cuentas/cuentas.component').then(m => m.CuentasComponent),
+    title: 'Nueva Cuenta'
+  },
+  {
     path: 'transacciones',
     loadComponent: () => import('./components/transacciones/transacciones.component').then(m => m.TransaccionesComponent),
     title: 'Transacciones'
+  },
+  {
+    path: 'transacciones/nueva',
+    loadComponent: () => import('./components/transacciones/transacciones.component').then(m => m.TransaccionesComponent),
+    title: 'Nueva Transacción'
+  },
+  {
+    path: 'notificaciones',
+    loadComponent: () => import('./components/notificaciones/notificaciones.component').then(m => m.NotificacionesComponent),
+    title: 'Notificaciones'
   },
   {
     path: '**',

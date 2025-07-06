@@ -1,6 +1,10 @@
-import { Component } from '@angular/core';
-import { RouterOutlet, RouterModule } from '@angular/router';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { RouterOutlet, RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Subject, takeUntil } from 'rxjs';
+import { UsuarioService } from './services/usuario.service';
+import { NotificacionService } from './services/notificacion.service';
+import { Usuario } from './models/usuario.model';
 
 /**
  * Componente principal de la aplicación Angular.
@@ -14,36 +18,39 @@ import { CommonModule } from '@angular/common';
  * lo que significa que no necesitan estar declarados en un módulo.
  */
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterOutlet,
-    RouterModule
-  ],
-  template: `
+    selector: 'app-root',
+    imports: [
+        CommonModule,
+        RouterOutlet,
+        RouterModule
+    ],
+    template: `
     <div class="app-container">
       <!-- Barra de navegación superior -->
       <header class="toolbar">
         <div class="toolbar-left">
-          <button class="menu-button" (click)="toggleSidenav()" type="button">
-            <span class="menu-icon">☰</span>
+          <button class="menu-button logo-burger" (click)="toggleSidenav()" type="button" style="display: flex; align-items: center; background: none; border: none;">
+            <img src="assets/logo.svg" alt="Logo del Banco" class="app-logo" style="height: 40px;" />
           </button>
-          <h1 class="app-title">🏦 Gestión de Cuentas de Ahorros</h1>
         </div>
         
         <div class="toolbar-center">
           <div class="breadcrumb">
-            <span class="breadcrumb-text">{{ getCurrentPageTitle() }}</span>
+            <a class="breadcrumb-link" routerLink="/transacciones">Transacciones</a>
           </div>
         </div>
         
         <div class="toolbar-right">
           <button class="notification-button" (click)="showNotifications()" type="button">
             <span class="notification-icon">🔔</span>
+            <span *ngIf="notificacionesNoLeidas > 0" class="notification-badge">{{ notificacionesNoLeidas }}</span>
           </button>
           <button class="user-button" (click)="showUserMenu()" type="button">
             <span class="user-icon">👤</span>
+            <span *ngIf="usuario" class="user-name">{{ usuario.nombre }}</span>
+          </button>
+          <button *ngIf="usuario" class="logout-button" (click)="logout()" type="button">
+            <span class="logout-icon">🚪</span>
           </button>
         </div>
       </header>
@@ -65,6 +72,11 @@ import { CommonModule } from '@angular/common';
               <span class="nav-icon">💱</span>
               <span class="nav-text">Transacciones</span>
             </a>
+            <a class="nav-item" routerLink="/notificaciones" routerLinkActive="active" (click)="closeSidenav()">
+              <span class="nav-icon">🔔</span>
+              <span class="nav-text">Notificaciones</span>
+              <span *ngIf="notificacionesNoLeidas > 0" class="nav-badge">{{ notificacionesNoLeidas }}</span>
+            </a>
           </div>
         </nav>
 
@@ -83,18 +95,19 @@ import { CommonModule } from '@angular/common';
            *ngIf="sidenavOpen"></div>
     </div>
   `,
-  styles: [`
+    styles: [`
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     .app-container {
       height: 100vh;
       display: flex;
       flex-direction: column;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     /* Barra de navegación superior */
@@ -171,14 +184,27 @@ import { CommonModule } from '@angular/common';
       backdrop-filter: blur(10px);
     }
 
-    .breadcrumb-text {
-      font-size: 14px;
-      font-weight: 500;
-      color: white;
+    .breadcrumb-link {
+      background: #764ba2;
+      color: #fff;
+      padding: 8px 24px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 16px;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: background 0.2s, color 0.2s;
+      display: inline-block;
+    }
+    .breadcrumb-link:hover {
+      background: #fff;
+      color: #764ba2;
+      border: 1px solid #764ba2;
     }
 
     .notification-button,
-    .user-button {
+    .user-button,
+    .logout-button {
       background: none;
       border: none;
       color: white;
@@ -187,6 +213,11 @@ import { CommonModule } from '@angular/common';
       padding: 8px;
       border-radius: 50%;
       transition: all 0.3s ease;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
       display: flex;
       align-items: center;
       justify-content: center;
@@ -196,14 +227,38 @@ import { CommonModule } from '@angular/common';
     }
 
     .notification-button:hover,
-    .user-button:hover {
+    .user-button:hover,
+    .logout-button:hover {
       background-color: rgba(255,255,255,0.2);
       transform: scale(1.05);
     }
 
     .notification-button:active,
-    .user-button:active {
+    .user-button:active,
+    .logout-button:active {
       transform: scale(0.95);
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #ff4757;
+      color: white;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-left: 4px;
     }
 
     /* Contenedor principal */
@@ -269,6 +324,21 @@ import { CommonModule } from '@angular/common';
 
     .nav-text {
       font-size: 16px;
+      flex: 1;
+    }
+
+    .nav-badge {
+      background: #ff4757;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-left: auto;
     }
 
     /* Contenido principal */
@@ -308,13 +378,19 @@ import { CommonModule } from '@angular/common';
     /* Responsive */
     @media (min-width: 768px) {
       .sidenav {
-        position: relative;
-        top: 0;
-        transform: translateX(0);
+        position: fixed;
+        top: 64px;
+        height: calc(100vh - 64px);
+        transform: translateX(-100%); /* ← Ahora está oculto por defecto */
+      }
+
+      .sidenav.sidenav-open {
+        transform: translateX(0); /* ← Solo se muestra cuando está abierto */
       }
 
       .content {
-        margin-left: 250px;
+        margin-left: 0; /* ← Sin margen fijo */
+        transition: margin-left 0.3s ease;
       }
 
       .sidenav-overlay {
@@ -356,9 +432,57 @@ import { CommonModule } from '@angular/common';
         justify-content: center;
       }
     }
+
+    .animated-logo {
+      font-family: 'Orbitron', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(270deg, #ff6ec4, #7873f5, #1fd1f9, #ff6ec4);
+      background-size: 800% 800%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientMove 8s ease-in-out infinite;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 0 2px #fff, 0 0 8px #764ba2;
+      filter: drop-shadow(0 2px 8px #764ba2);
+      border-radius: 8px;
+      padding: 2px 18px;
+      border: 2px solid #fff3;
+      box-shadow: 0 2px 12px 0 #764ba233;
+      margin-left: 16px;
+      transition: transform 0.2s;
+    }
+    .animated-logo:hover {
+      transform: scale(1.05) rotate(-2deg);
+      box-shadow: 0 4px 24px 0 #1fd1f955;
+    }
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .logo-burger {
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .logo-burger .app-logo {
+      transition: transform 0.15s, filter 0.15s;
+    }
+    .logo-burger:hover .app-logo,
+    .logo-burger:focus .app-logo {
+      filter: brightness(0.9);
+      transform: scale(1.08);
+    }
+    .logo-burger:active .app-logo {
+      filter: brightness(0.8);
+      transform: scale(0.96);
+    }
   `]
 })
-export class AppComponent {
+export class AppComponent implements OnInit, OnDestroy {
   /**
    * Título de la aplicación.
    */
@@ -368,6 +492,45 @@ export class AppComponent {
    * Estado del menú lateral (abierto/cerrado).
    */
   sidenavOpen = false;
+  usuario: Usuario | null = null;
+  notificacionesNoLeidas = 0;
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private usuarioService: UsuarioService,
+    private notificacionService: NotificacionService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    // Suscribirse al usuario actual
+    this.usuarioService.currentUser$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(usuario => {
+        this.usuario = usuario;
+        if (usuario) {
+          this.cargarNotificacionesNoLeidas();
+        }
+      });
+
+    // Suscribirse al contador de notificaciones
+    this.notificacionService.notificacionesNoLeidas$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(count => {
+        this.notificacionesNoLeidas = count;
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  cargarNotificacionesNoLeidas(): void {
+    if (this.usuario) {
+      this.notificacionService.contarNoLeidas(this.usuario.id).subscribe();
+    }
+  }
 
   /**
    * Alterna el estado del menú lateral.
@@ -406,15 +569,30 @@ export class AppComponent {
    * Muestra las notificaciones.
    */
   showNotifications(): void {
-    console.log('Mostrar notificaciones');
-    alert('🔔 Funcionalidad de notificaciones en desarrollo');
+    if (this.usuario) {
+      this.router.navigate(['/notificaciones']);
+    } else {
+      this.router.navigate(['/login']);
+    }
   }
 
   /**
    * Muestra el menú de usuario.
    */
   showUserMenu(): void {
-    console.log('Mostrar menú de usuario');
-    alert('👤 Funcionalidad de usuario en desarrollo');
+    if (this.usuario) {
+      // Aquí podrías mostrar un dropdown con opciones del usuario
+      console.log('Usuario actual:', this.usuario);
+    } else {
+      this.router.navigate(['/login']);
+    }
+  }
+
+  /**
+   * Cierra la sesión del usuario.
+   */
+  logout(): void {
+    this.usuarioService.logout();
+    this.router.navigate(['/login']);
   }
 } 
